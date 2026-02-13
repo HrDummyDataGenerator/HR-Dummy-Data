@@ -51,13 +51,28 @@
             position: relative;
         }
 
-        .version-badge {
+        .refresh-btn {
             position: absolute;
             top: 1rem;
             right: 1.5rem;
-            font-size: 0.75rem;
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 0.5rem;
+            border-radius: 0.75rem;
             color: var(--text-muted);
-            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+        }
+
+        .refresh-btn:hover {
+            color: var(--primary);
+            border-color: var(--primary);
+            transform: rotate(45deg);
         }
 
         header {
@@ -261,7 +276,9 @@
     </div>
 
     <div class="container">
-        <div class="version-badge"></div>
+        <button class="refresh-btn" id="refreshPage" title="Reset Generator">
+            <i data-lucide="refresh-cw" style="width: 18px; height: 18px;"></i>
+        </button>
         <header>
             <h1>HR Data Generator</h1>
             <p class="subtitle" style="color:var(--text-muted); text-align:center;">Intelligent sample-based data
@@ -371,12 +388,29 @@
             if (!sampleStr) return null;
 
             // 0. HR CATEGORY DETECTION (PRIORITY: Header Keywords)
-            // This prevents "Department" containing "John Doe" from being treated as a name field
             if (/\b(dept|department|birim|bolum|departman)\b/i.test(h)) return { type: 'dept', gen: () => faker.commerce.department() };
             if (/\b(job|title|position|unvan|gorev)\b/i.test(h)) return { type: 'job', gen: () => faker.person.jobTitle() };
-            if (/\b(manager|manager.*name|yonetici|supervisor)\b/i.test(h)) return { type: 'manager', gen: () => faker.person.fullName() };
-            if (/\b(location|office|office.*location|lokasyon|campus|site)\b/i.test(h)) return { type: 'location', gen: () => faker.location.city() };
-            if (/\b(employment.*type|work.*type|contract.*type)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['Full-Time', 'Part-Time', 'Contract', 'Internship']) };
+            if (/\b(location|office|lokasyon|campus|site)\b/i.test(h)) return { type: 'location', gen: () => faker.location.city() };
+            if (/\b(employment.*type|work.*mode|working.*type|contract|status|currency|para.*birimi)\b/i.test(h)) {
+                if (/\b(mode|type|durum)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['Remote', 'Hybrid', 'On-site', 'Full-time', 'Part-time']) };
+                if (/\b(currency|para)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['USD', 'EUR', 'TRY', 'GBP']) };
+                return { type: 'category', gen: () => faker.helpers.arrayElement(['Active', 'Passive', 'Pending']) };
+            }
+
+            // 0.1 ID PATTERN DETECTION (High Priority)
+            // Matches patterns like EMP-2015-0012, 100-200, ID_44, etc.
+            if ((/[A-Z]+.*\d+|\d+.*[A-Z]+/.test(sampleStr) || /^[A-Z0-9]{3,}-[A-Z0-9]{2,}/i.test(sampleStr)) && (/\bid\b/i.test(h) || sampleStr.length < 20)) {
+                return {
+                    type: 'id_pattern',
+                    gen: () => {
+                        return sampleStr.replace(/[A-Z]/g, () => faker.string.alpha({ length: 1, casing: 'upper' }))
+                            .replace(/[a-z]/g, () => faker.string.alpha({ length: 1, casing: 'lower' }))
+                            .replace(/\d/g, () => faker.string.numeric(1));
+                    }
+                };
+            }
+
+            if (/\b(manager|yonetici|supervisor)\b/i.test(h) && !/\bid\b/i.test(h)) return { type: 'manager', gen: () => faker.person.fullName() };
 
             // 1. DATE DETECTION (Header Keywords first)
             const isDateColumn = /\b(date|tarih|birth|hire|join|review|start|end|gun|ay|yil|dob|last|first|anniversary)\b/i.test(h);
@@ -421,7 +455,7 @@
             // 4. NAME PATTERNS (2+ words, letters only)
             if (/^[A-Za-zğüşıöçĞÜŞİÖÇ]+\s+[A-Za-zğüşıöçĞÜŞİÖÇ]+/.test(sampleStr)) {
                 // If header explicitly mentions a specific role that is NOT the employee, treat as independent name
-                if (/\b(manager|supervisor|yonetici|emergency|contact|reference)\b/i.test(h)) {
+                if (/\b(manager|supervisor|yonetici|emergency|contact|reference)\b/i.test(h) && !/\bid\b/i.test(h)) {
                     return { type: 'manager', gen: () => faker.person.fullName() };
                 }
                 // Otherwise, if it's the primary name
@@ -452,6 +486,8 @@
             if (/\b(gender|cinsiyet)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['Male', 'Female']) };
             if (/\b(marital|medeni)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['Single', 'Married', 'Divorced', 'Widowed']) };
             if (/\b(nationality|country|ulke)\b/i.test(h)) return { type: 'category', gen: () => faker.location.country() };
+            if (/\b(work.*mode|working.*style|uzaktan|hibrit)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['Remote', 'Hybrid', 'On-site']) };
+            if (/\b(currency|birim|doviz)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['USD', 'EUR', 'TRY', 'GBP']) };
 
             if (sampleStr.length > 0 && sampleStr.length < 30) {
                 return { type: 'word', gen: () => faker.person.firstName() };
@@ -558,8 +594,10 @@
             XLSX.utils.book_append_sheet(wb, ws, "Data");
             XLSX.writeFile(wb, "hr_data_v4.xlsx");
         });
+        document.getElementById('refreshPage').addEventListener('click', () => {
+            window.location.reload();
+        });
     </script>
 </body>
 
 </html>
-
