@@ -4,13 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR Dummy Data Generator | GitHub Pages Version</title>
+    <title>HR Dummy Data Generator v4.4</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- SheetJS CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
@@ -43,13 +41,23 @@
 
         .container {
             width: 100%;
-            max-width: 900px;
+            max-width: 1000px;
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
             border-radius: 1.5rem;
             padding: 3rem;
             box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .version-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
         }
 
         header {
@@ -65,11 +73,6 @@
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-
-        p.subtitle {
-            color: var(--text-muted);
-            font-size: 1.1rem;
         }
 
         .card {
@@ -114,6 +117,13 @@
             height: 100%;
             opacity: 0;
             cursor: pointer;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
         }
 
         .config-grid {
@@ -132,7 +142,6 @@
         label {
             font-weight: 600;
             font-size: 0.9rem;
-            color: var(--text-main);
         }
 
         input[type="number"] {
@@ -141,11 +150,6 @@
             border: 1px solid #cbd5e1;
             font-size: 1rem;
             outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input[type="number"]:focus {
-            border-color: var(--primary);
         }
 
         .btn {
@@ -173,7 +177,6 @@
         .btn:disabled {
             background: #94a3b8;
             cursor: not-allowed;
-            transform: none;
         }
 
         .preview-section {
@@ -198,7 +201,6 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.875rem;
-            background: white;
         }
 
         th {
@@ -214,19 +216,6 @@
             padding: 1rem;
             border-bottom: 1px solid #f1f5f9;
             color: var(--text-muted);
-            white-space: nowrap;
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            background: #dcfce7;
-            color: #166534;
-            margin-top: 0.5rem;
         }
 
         .loading-overlay {
@@ -266,15 +255,17 @@
 </head>
 
 <body>
-
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
-        <p>Generating data...</p>
+        <p>Analyzing sample data and generating...</p>
     </div>
 
     <div class="container">
+        <div class="version-badge">v4.6 - Logical Data Fix</div>
         <header>
             <h1>HR Data Generator</h1>
+            <p class="subtitle" style="color:var(--text-muted); text-align:center;">Intelligent sample-based data
+                generation</p>
         </header>
 
         <div class="card">
@@ -282,8 +273,8 @@
                 <i data-lucide="file-up"></i>
                 <h3>Upload Template</h3>
                 <p class="subtitle">Drag and drop or click to select (.xlsx)</p>
-                <div id="fileStatus" class="status-badge" style="display: none;">
-                    <i data-lucide="check-circle-2" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                <div id="fileStatus" class="status-badge"
+                    style="display: none; background:#dcfce7; color:#166534; padding:2px 10px; border-radius:15px; margin-top:5px;">
                     <span id="fileName">Template loaded</span>
                 </div>
                 <input type="file" id="fileInput" accept=".xlsx">
@@ -346,90 +337,226 @@
         fileInput.addEventListener('change', handleFile);
 
         function handleFile(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function (evt) {
-                const data = new Uint8Array(evt.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-                if (jsonData.length > 0) {
-                    templateHeaders = jsonData[0];
-                    templateRow = jsonData[1] || {};
-                    fileNameLabel.textContent = file.name;
-                    fileStatus.style.display = 'inline-flex';
-                    dropZone.classList.add('active');
-                    generateBtn.disabled = false;
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            try {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    try {
+                        const data = new Uint8Array(evt.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        if (jsonData.length > 0) {
+                            let headerIdx = 0;
+                            while (headerIdx < jsonData.length && (!jsonData[headerIdx] || jsonData[headerIdx].every(v => !v))) headerIdx++;
+                            if (headerIdx < jsonData.length) {
+                                templateHeaders = jsonData[headerIdx].map(h => String(h || "").trim());
+                                templateRow = jsonData[headerIdx + 1] || [];
+                                fileNameLabel.textContent = file.name;
+                                fileStatus.style.display = 'inline-block';
+                                generateBtn.disabled = false;
+                            }
+                        }
+                    } catch (err) { alert("Error: " + err.message); }
+                };
+                reader.readAsArrayBuffer(file);
+            } catch (err) { console.error(err); }
         }
 
-        // Map column header/value to Faker method
-        function getFakerMethod(header, sampleValue) {
-            header = header.toLowerCase();
-            const val = String(sampleValue || "").toLowerCase();
+        // SAMPLE-FIRST ANALYSIS FUNCTION
+        function analyzeSample(sampleValue, header) {
+            const sampleStr = String(sampleValue || "").trim();
+            const h = (header || "").toLowerCase().replace(/_/g, ' '); // Replace underscores with spaces
+            if (!sampleStr) return null;
 
-            if (header.includes('name') || header.includes('employee')) return () => faker.person.fullName();
-            if (header.includes('email')) return () => faker.internet.email();
-            if (header.includes('phone') || header.includes('tel')) return () => faker.phone.number();
-            if (header.includes('dept') || header.includes('department')) return () => faker.commerce.department();
-            if (header.includes('job') || header.includes('title') || header.includes('position')) return () => faker.person.jobTitle();
-            if (header.includes('salary') || header.includes('wage')) return () => faker.number.int({ min: 3000, max: 150000 }).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-            if (header.includes('date') || header.includes('join')) return () => faker.date.past().toISOString().split('T')[0];
-            if (header.includes('address') || header.includes('location') || header.includes('city')) return () => faker.location.streetAddress();
-            if (header.includes('id') || header.includes('code')) return () => faker.string.alphanumeric(8).toUpperCase();
+            // 0. HR CATEGORY DETECTION (PRIORITY: Header Keywords)
+            // This prevents "Department" containing "John Doe" from being treated as a name field
+            if (/\b(dept|department|birim|bolum|departman)\b/i.test(h)) return { type: 'dept', gen: () => faker.commerce.department() };
+            if (/\b(job|title|position|unvan|gorev)\b/i.test(h)) return { type: 'job', gen: () => faker.person.jobTitle() };
+            if (/\b(manager|manager.*name|yonetici|supervisor)\b/i.test(h)) return { type: 'manager', gen: () => faker.person.fullName() };
+            if (/\b(location|office|office.*location|lokasyon|campus|site)\b/i.test(h)) return { type: 'location', gen: () => faker.location.city() };
+            if (/\b(employment.*type|work.*type|contract.*type)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['Full-Time', 'Part-Time', 'Contract', 'Internship']) };
 
-            // Fallback based on sample data type
-            if (typeof sampleValue === 'number') return () => faker.number.int({ min: 1, max: 1000 });
-            return () => faker.word.adjective() + " " + faker.word.noun();
+            // 1. DATE DETECTION (Header Keywords first)
+            const isDateColumn = /\b(date|tarih|birth|hire|join|review|start|end|gun|ay|yil|dob|last|first|anniversary)\b/i.test(h);
+            if (isDateColumn) {
+                if (typeof sampleValue === 'number' && sampleValue > 20000 && sampleValue < 60000) {
+                    return { type: 'date', gen: () => formatDate(faker.date.past({ years: 10 })) };
+                }
+                if (/^\d{2}\.\d{2}\.\d{4}/.test(sampleStr) || /^\d{4}-\d{2}-\d{2}/.test(sampleStr)) {
+                    return {
+                        type: 'date',
+                        gen: () => {
+                            const d = faker.date.past({ years: 10 });
+                            return sampleStr.includes('.') ? formatDate(d) : d.toISOString().split('T')[0];
+                        }
+                    };
+                }
+            }
+
+            // 2. PHONE NUMBER PATTERNS
+            if (/^[\d\s\-\(\)\+]{7,20}$/.test(sampleStr) && /\d{3,}/.test(sampleStr)) {
+                return { type: 'phone', gen: () => faker.helpers.replaceSymbols(sampleStr.replace(/\d/g, '#')) };
+            }
+
+            // 3. NUMERIC PATTERNS (salary, scores, IDs, etc.)
+            let cleanNum = sampleStr.replace(/[^0-9.,-]/g, '');
+            const hasComma = sampleStr.includes(',') && !sampleStr.includes('.');
+            if (hasComma) cleanNum = cleanNum.replace(',', '.');
+            const numValue = parseFloat(cleanNum);
+
+            if (!isNaN(numValue) && cleanNum !== "" && !isDateColumn) {
+                const decPlaces = hasComma ? (sampleStr.split(',')[1]?.length || 0) : (sampleStr.split('.')[1]?.length || 0);
+                const absVal = Math.abs(numValue);
+                return {
+                    type: 'number',
+                    gen: () => {
+                        const val = faker.number.float({ min: absVal * 0.7, max: absVal * 1.3, fractionDigits: decPlaces });
+                        return hasComma ? val.toFixed(decPlaces).replace('.', ',') : (decPlaces > 0 ? val.toFixed(decPlaces) : Math.round(val));
+                    }
+                };
+            }
+
+            // 4. NAME PATTERNS (2+ words, letters only)
+            if (/^[A-Za-zğüşıöçĞÜŞİÖÇ]+\s+[A-Za-zğüşıöçĞÜŞİÖÇ]+/.test(sampleStr)) {
+                // If header explicitly mentions a specific role that is NOT the employee, treat as independent name
+                if (/\b(manager|supervisor|yonetici|emergency|contact|reference)\b/i.test(h)) {
+                    return { type: 'manager', gen: () => faker.person.fullName() };
+                }
+                // Otherwise, if it's the primary name
+                if (/\b(fullname|name|isim|ad.*soyad)\b/i.test(h)) {
+                    return { type: 'fullname' };
+                }
+                // Fallback for names in other columns
+                return { type: 'independent_name', gen: () => faker.person.fullName() };
+            }
+
+            // 5. EMAIL PATTERN
+            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sampleStr)) {
+                return { type: 'email' };
+            }
+
+            // 6. LONG TEXT/ADDRESS
+            if (sampleStr.length > 30) {
+                if (/\b(address|adres|home|office|location)\b/i.test(h) || /\d+/.test(sampleStr)) {
+                    return {
+                        type: 'address',
+                        gen: () => `${faker.location.buildingNumber()} ${faker.location.street()}, ${faker.location.city()}`
+                    };
+                }
+                return { type: 'text', gen: () => faker.lorem.sentence() };
+            }
+
+            // 7. CATEGORICAL FALLBACKS (Gender, Marital Status, etc.)
+            if (/\b(gender|cinsiyet)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['Male', 'Female']) };
+            if (/\b(marital|medeni)\b/i.test(h)) return { type: 'category', gen: () => faker.helpers.arrayElement(['Single', 'Married', 'Divorced', 'Widowed']) };
+            if (/\b(nationality|country|ulke)\b/i.test(h)) return { type: 'category', gen: () => faker.location.country() };
+
+            if (sampleStr.length > 0 && sampleStr.length < 30) {
+                return { type: 'word', gen: () => faker.person.firstName() };
+            }
+
+            return null;
+        }
+
+        function formatDate(d) {
+            return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+        }
+
+
+        function getGenerator(header, sampleValue) {
+            // PRIORITY 1: Analyze sample first
+            const analysis = analyzeSample(sampleValue, header);
+            if (analysis) return analysis;
+
+            // PRIORITY 2: Header keywords (fallback)
+            const h = header.toLowerCase();
+
+            if (/\b(name|fullname|isim|ad soyad)\b/i.test(h)) return { type: 'fullname' };
+            if (/\b(first|ad|adi)\b/i.test(h) && !/soyad/i.test(h)) return { type: 'firstname' };
+            if (/\b(last|surname|soyad)\b/i.test(h)) return { type: 'lastname' };
+            if (/\b(email|mail)\b/i.test(h)) return { type: 'email' };
+            if (/\b(gender|cinsiyet)\b/i.test(h)) return { gen: () => faker.helpers.arrayElement(['Male', 'Female']) };
+            if (/\b(dept|department|birim)\b/i.test(h)) return { gen: () => faker.commerce.department() };
+            if (/\b(job|title|position|unvan)\b/i.test(h)) return { gen: () => faker.person.jobTitle() };
+            if (/\b(city|sehir|location)\b/i.test(h)) return { gen: () => faker.location.city() };
+            if (/\b(phone|tel)\b/i.test(h)) return { gen: () => faker.phone.number() };
+            if (/\b(address|adres)\b/i.test(h)) return { gen: () => `${faker.location.streetAddress()}, ${faker.location.city()}` };
+
+            return { gen: () => faker.word.words(2) };
         }
 
         generateBtn.addEventListener('click', () => {
             const count = parseInt(rowCountInput.value);
             if (isNaN(count) || count < 1) return;
-
             loadingOverlay.style.display = 'flex';
-
-            // Micro-task to allow spinner to show
             setTimeout(() => {
-                const generators = templateHeaders.map((header, idx) => {
-                    const sample = templateRow && Array.isArray(templateRow) ? templateRow[idx] : (templateRow ? templateRow[header] : null);
-                    return getFakerMethod(header, sample);
-                });
+                try {
+                    const schema = templateHeaders.map((header, idx) => ({
+                        info: getGenerator(header, templateRow && templateRow[idx] ? templateRow[idx] : null)
+                    }));
 
-                generatedData = [];
-                for (let i = 0; i < count; i++) {
-                    const row = {};
-                    templateHeaders.forEach((header, idx) => {
-                        row[header] = generators[idx]();
-                    });
-                    generatedData.push(row);
-                }
+                    generatedData = [];
+                    for (let i = 0; i < count; i++) {
+                        const rowArr = [];
+                        const ctx = { fn: faker.person.firstName(), ln: faker.person.lastName() };
+                        ctx.full = `${ctx.fn} ${ctx.ln}`;
 
-                renderPreview();
-                loadingOverlay.style.display = 'none';
-                previewSection.style.display = 'block';
-                previewSection.scrollIntoView({ behavior: 'smooth' });
+                        schema.forEach(({ info }) => {
+                            let v = "";
+                            if (info.type === 'email') v = faker.internet.email({ firstName: ctx.fn, lastName: ctx.ln }).toLowerCase();
+                            else if (info.type === 'fullname') v = ctx.full;
+                            else if (info.type === 'firstname') v = ctx.fn;
+                            else if (info.type === 'lastname') v = ctx.ln;
+                            else if (info.gen) v = info.gen();
+                            else v = "";
+                            rowArr.push(v);
+                        });
+                        generatedData.push(rowArr);
+                    }
+                    renderPreview();
+                    loadingOverlay.style.display = 'none';
+                    previewSection.style.display = 'block';
+                } catch (e) { alert(e.message); loadingOverlay.style.display = 'none'; }
             }, 100);
         });
 
         function renderPreview() {
-            tableHead.innerHTML = templateHeaders.map(h => `<th>${h}</th>`).join('');
-            tableBody.innerHTML = generatedData.slice(0, 5).map(row =>
-                `<tr>${templateHeaders.map(h => `<td>${row[h]}</td>`).join('')}</tr>`
-            ).join('');
+            tableHead.innerHTML = templateHeaders.map(h => `<th>${h || '(Empty)'}</th>`).join('');
+            tableBody.innerHTML = generatedData.slice(0, 5).map(row => `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
         }
 
         downloadBtn.addEventListener('click', () => {
-            const ws = XLSX.utils.json_to_sheet(generatedData);
+            const ws = XLSX.utils.aoa_to_sheet([templateHeaders, ...generatedData]);
+
+            // Set cell types explicitly
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = ws[cellAddress];
+                    if (cell && cell.v !== null && cell.v !== undefined) {
+                        const value = cell.v;
+                        if (typeof value === 'number') {
+                            cell.t = 'n';
+                            cell.v = value;
+                        } else if (typeof value === 'string') {
+                            const numValue = parseFloat(value.replace(',', '.'));
+                            if (!isNaN(numValue) && /^-?\d+[.,]?\d*$/.test(value.trim())) {
+                                cell.t = 'n';
+                                cell.v = numValue;
+                            } else {
+                                cell.t = 's';
+                            }
+                        }
+                    }
+                }
+            }
+
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Generated Data");
-            XLSX.writeFile(wb, "hr_dummy_data.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            XLSX.writeFile(wb, "hr_data_v4.xlsx");
         });
     </script>
 </body>
